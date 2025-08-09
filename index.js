@@ -5,10 +5,56 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
 const sharedSession = require('express-socket.io-session');
+const fs = require('fs').promises;
+const bcrypt = require('bcrypt');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+const USERS_FILE = path.join(__dirname, 'users.json');
+
+// ユーザーデータをJSONから読み込む関数
+async function loadUsers() {
+  try {
+    const data = await fs.readFile(USERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch {
+    return {}; // ファイルなければ空オブジェクト
+  }
+}
+
+// ユーザーデータをJSONに書き込む関数
+async function saveUsers(users) {
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+// 新規登録ページ（GET）
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/register.html'));
+});
+
+// 新規登録処理（POST）
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.send('ユーザー名とパスワードは必須だ！');
+  }
+
+  const users = await loadUsers();
+
+  if (users[username]) {
+    return res.send('そのユーザー名は既に使われているぜ！');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  users[username] = hashedPassword;
+
+  await saveUsers(users);
+
+  res.send('登録成功！ログインページに行くぜ → <a href="/login">ログイン</a>');
+});
 
 // ← セッション設定を変数に格納（これを共有する）
 const sessionMiddleware = session({
@@ -26,11 +72,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // 静的ファイル配信（publicフォルダ）
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 簡単なユーザー管理（ハードコーディングでデモ用）
-const users = {
-  shogun: 'katana',
-  takumi: 'ninja123',
-};
 
 // ログインページ（GET）
 app.get('/login', (req, res) => {
@@ -38,13 +79,22 @@ app.get('/login', (req, res) => {
 });
 
 // ログイン処理（POST）
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  if (users[username] && users[username] === password) {
-    req.session.username = username;  // セッションにユーザー名保存
-    res.redirect('/chat.html');       // ログイン成功でチャット画面へ
+
+  const users = await loadUsers();
+
+  const hashedPassword = users[username];
+  if (!hashedPassword) {
+    return res.send('ユーザーがいません');
+  }
+
+  const match = await bcrypt.compare(password, hashedPassword);
+  if (match) {
+    req.session.username = username;
+    res.redirect('/chat.html');
   } else {
-    res.send('ログイン失敗！ユーザー名かパスワードが違うぜ！');
+    res.send('パスワードが違うぜ！');
   }
 });
 
