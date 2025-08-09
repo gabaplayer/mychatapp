@@ -23,7 +23,7 @@ const sessionMiddleware = session({
 
 
 // POSTデータをパース
-app.use(urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
 // Expressでセッションを使う
 app.use(sessionMiddleware);
