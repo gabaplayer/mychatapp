@@ -4,17 +4,21 @@ const { Server } = require('socket.io');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
+const sharedSession = require('express-socket.io-session');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// セッション設定
-app.use(session({
+// ← セッション設定を変数に格納（これを共有する）
+const sessionMiddleware = session({
   secret: '将軍の極秘鍵',
   resave: false,
   saveUninitialized: true,
-}));
+});
+
+// Expressでセッションを使う
+app.use(sessionMiddleware);
 
 // POSTデータをパース
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -58,14 +62,16 @@ app.get('/chat.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/chat.html'));
 });
 
+// Socket.io に express-session を共有設定
+io.use(sharedSession(sessionMiddleware, {
+  autoSave: true
+}));
+
 // Socket.io 接続時の処理
 io.on('connection', (socket) => {
-  console.log('ユーザー接続:', socket.id);
+  const username = socket.handshake.session.username || '名無し';
+  console.log('ユーザー接続:', socket.id, 'ユーザー名:', username);
 
-  // 接続ユーザー名を取得する
-  const username = socket.request.session?.username || '名無し';
-
-  // メッセージ受信時にユーザー名付きで全員に送信
   socket.on('chat message', (msg) => {
     io.emit('chat message', { user: username, message: msg });
   });
@@ -74,14 +80,6 @@ io.on('connection', (socket) => {
     console.log('ユーザー切断:', socket.id);
   });
 });
-
-// express-session を socket.io で共有する設定
-const sharedSession = require("express-socket.io-session");
-io.use(sharedSession(session({
-  secret: '将軍の極秘鍵',
-  resave: false,
-  saveUninitialized: true,
-})));
 
 // サーバ起動
 server.listen(3000, () => {
