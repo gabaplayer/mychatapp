@@ -14,6 +14,23 @@ const io = new Server(server);
 
 const USERS_FILE = path.join(__dirname, 'users.json');
 
+// ← セッション設定を変数に格納（これを共有する）
+const sessionMiddleware = session({
+  secret: '将軍の極秘鍵',
+  resave: false,
+  saveUninitialized: true,
+});
+
+
+// POSTデータをパース
+app.use(urlencoded({ extended: true }));
+
+// Expressでセッションを使う
+app.use(sessionMiddleware);
+
+// 静的ファイル配信（publicフォルダ）
+app.use(express.static(path.join(__dirname, 'public')));
+
 // ユーザーデータをJSONから読み込む関数
 async function loadUsers() {
   try {
@@ -55,22 +72,6 @@ app.post('/register', async (req, res) => {
 
   res.send('登録成功！ログインページに行くぜ → <a href="/login">ログイン</a>');
 });
-
-// ← セッション設定を変数に格納（これを共有する）
-const sessionMiddleware = session({
-  secret: '将軍の極秘鍵',
-  resave: false,
-  saveUninitialized: true,
-});
-
-// Expressでセッションを使う
-app.use(sessionMiddleware);
-
-// POSTデータをパース
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// 静的ファイル配信（publicフォルダ）
-app.use(express.static(path.join(__dirname, 'public')));
 
 
 // ログインページ（GET）
