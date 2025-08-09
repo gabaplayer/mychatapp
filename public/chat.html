@@ -1,31 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>独自チャット</title>
-  <style>
-    body { font-family: sans-serif; margin: 0; padding: 20px; }
-    ul { list-style: none; padding: 0; }
-    li { margin: 5px 0; }
-    #form { display: flex; }
-    #input { flex: 1; padding: 10px; }
-  </style>
+  <title>チャットルーム</title>
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>チャットアプリ</h1>
+  <h2>チャットルーム</h2>
   <ul id="messages"></ul>
   <form id="form">
     <input id="input" autocomplete="off" /><button>送信</button>
   </form>
-
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const messages = document.getElementById('messages');
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (input.value) {
         socket.emit('chat message', input.value);
@@ -33,9 +25,9 @@
       }
     });
 
-    socket.on('chat message', function(msg) {
+    socket.on('chat message', ({ user, message }) => {
       const item = document.createElement('li');
-      item.textContent = msg;
+      item.textContent = user + ': ' + message;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
     });
